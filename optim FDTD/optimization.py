@@ -1,3 +1,7 @@
+"""This optimization is based on a lumerical example using a Python API.
+ The example is here : https://optics.ansys.com/hc/en-us/articles/360042800573-Inverse-Design-of-Grating-Coupler-2D""
+"""
+
 import numpy as np
 from lumapi import FDTD
 from lumopt.geometries.parameterized_geometry import ParameterizedGeometry
@@ -8,9 +12,10 @@ from lumopt.optimization import Optimization
 
 from ClassGEO import PhcForOptimization
 
-
+#select which geometry you want to optimize by using this function, you have to replace the object of the classGEO
 def run_phc_optimization(PhcForOptimization, initial_params: list, bounds: list):
     def gen_phc(params: list, fdtd: FDTD, only_update: bool):
+        """This sub function allows the creation and the update of the geometry you want to optimize"""
         if not only_update:
             PhcForOptimization.setup_geometry(params, fdtd)
         else:
