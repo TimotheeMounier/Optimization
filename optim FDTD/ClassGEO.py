@@ -31,7 +31,6 @@ class GeomBase(ABC):
 
         return fdtd
 
-
 class Phc(GeomBase):
     def __init__(self):
         self.wg_region_width = 1.5e-6
@@ -45,7 +44,7 @@ class Phc(GeomBase):
         self.wg_z_span = 0.176376
         self.wg1_width = 0.397017
 
-        self.x_span = 15e-6
+        self.x_span = 2 * 8.69221e-6
         self.y_span = 8e-6
         self.z_span = 2e-6
 
@@ -58,35 +57,49 @@ class Phc(GeomBase):
 
         self.dx = 0.03e-6
         self.dy = 0.03e-6
-        self.dz = 0.03e-6
+        self.dz = 0.013e-6
 
-        self._source_pos_x = -self.x_span / 2 + 0.6e-6
-        self._fom_pos_x = self.x_span / 2 - 0.6e-6
+        self._source_pos_x = -self.x_span / 2
+        self._fom_pos_x = self.x_span / 2
 
-        self._mode_span_y = self.wg_region_width
-        self._mode_span_z = self.wg_region_height * 4
+        self._mode_span_y = 1.5e-6
+        self._mode_span_z = 0.881e-6
 
     def setup_script(self, fdtd: FDTD):
 
-        filename = "C:\\Users\\SQ\\Documents\\Lumerical\\Photonic_crystals\\FSF_crystal\\04_optimization_python\\Phc_slow_low.fsp"
+        filename = "C:\\Users\\SQ\\Documents\\Lumerical\\Photonic_crystals\\FSF_crystal\\04_optimization_python\\Phc_slow_without_wg.fsp"
 
         fdtd.load(filename)
 
-        props = OrderedDict([
-            ("dimension", "3D"),
-            ("x", 0.),
-            ("x span", self.x_span),
-            ("y", 0.),
-            ("y span", self.y_span),
-            ("z", 0.),
-            ("z span", self.z_span),
-            ("y min bc", "anti-symmetric"),
-            ("mesh accuracy", 2),
-            ("simulation time", 10000e-15),
-            ("auto shutoff min", 1e-3),
-        ])
+        # props = OrderedDict([
+        #     ("dimension", "3D"),
+        #     ("x", 0.),
+        #     ("x span", self.x_span),
+        #     ("y", 0.),
+        #     ("y span", self.y_span),
+        #     ("z", 0.),
+        #     ("z span", self.z_span),
+        #     ("y min bc", "anti-symmetric"),
+        #     ("mesh accuracy", 2),
+        #     ("simulation time", 10000e-15),
+        #     ("auto shutoff min", 1e-3),
+        # ])
+        #
+        # fdtd.addfdtd(properties=props)
 
-        fdtd.addfdtd(properties=props)
+        # fdtd.addrect(name="membrane",
+        #              x=0, y=0, z=0,
+        #              x_span=self.membrane_length * 1e-6,
+        #              y_span=self.membrane_width * 1e-6,
+        #              z_span=self.wg_region_height,
+        #              index=self.n_wg)
+        #
+        # fdtd.addrect(name="inner membrane",
+        #              x=0, y=0, z=0.0316e-6,
+        #              x_span=self.membrane_length * 1e-6,
+        #              y_span=self.membrane_width * 1e-6,
+        #              z_span=0.047e-6,
+        #              index=self.n_wg)
 
         fdtd.addmode(name="source",
                      injection_axis="x-axis",
@@ -101,14 +114,17 @@ class Phc(GeomBase):
 
         fdtd.setglobalsource("center wavelength", self.lambda0)
         fdtd.setglobalsource("wavelength span", self.lambda_span)
-        fdtd.setglobalmonitor("frequency points", 25)
+        fdtd.setglobalmonitor("frequency points", 100)
 
         fdtd.addpower(name="fom",
                       monitor_type="2D X-normal",
                       x=self._fom_pos_x,
                       y=0, z=0,
                       y_span=self._mode_span_y,
-                      z_span=self._mode_span_z)
+                      z_span=self._mode_span_z,
+                      override_global_monitor_settings=True,
+                      frequency_points=100
+                      )
 
         fdtd.addmesh(name="fom_mesh",
                      x=self._fom_pos_x,
@@ -119,29 +135,32 @@ class Phc(GeomBase):
                      override_x_mesh=True,
                      override_y_mesh=False,
                      override_z_mesh=False,
-                     dx=self.dx)
+                     dx=self.dx,
+                     )
 
         fdtd.addpower(name="opt_fields",
-                      monitor_type="3D",
+                      monitor_type="2D Z-normal",
                       x=0, y=0, z=0,
                       x_span=self.x_span,
-                      y_span=self.wg_region_width,
-                      z_span=self.wg_region_height,
-                      output_Hx=False, output_Hy=False,
-                      output_Hz=False, output_power=False)
+                      y_span=self._mode_span_y,
+                      override_global_monitor_settings=True,
+                      frequency_points=20,
+                      spatial_interpolation="specified position",
+                      record_data_in_pml=True
+                      )
 
         fdtd.addmesh(name="opt_fields_mesh",
                      x=0, y=0, z=0,
                      x_span=self.x_span,
-                     y_span=self.wg_region_width,
-                     z_span=self.wg_region_height,
+                     y_span=self._mode_span_y,
+                     z_span=self._mode_span_z,
                      dx=self.dx, dy=self.dy, dz=self.dz)
 
         fdtd.redrawon()
 
     def setup_geometry(self, params: list, fdtd: FDTD):
 
-        (x_coords_right, y_coords_right), (x_coords_left, y_coords_left) = self._create_fast_regions_air()
+        (x_coords_right, y_coords_right), (x_coords_left, y_coords_left) = self._create_fast_regions_air(params)
         (x_min_coords, y_min_coords, x_max_coords, y_max_coords) = self._create_wg(params)
 
         # Adding rect for WG
@@ -151,59 +170,35 @@ class Phc(GeomBase):
 
         # Adding circles for the right region
         for i, (x, y) in enumerate(zip(x_coords_right, y_coords_right)):
-            if (i + 1) % 11 == 0:
-                fdtd.addcircle(name=f'circle_right_{i}', x=x * 1e-6, y=y * 1e-6, z=0.0e-9, z_span=0.176376e-6,
-                               radius=self.hole_radius, index=1.4, material="etch")
-            else:
-                fdtd.addcircle(name=f'circle_right_{i}', x=x * 1e-6, y=y * 1e-6, z=0.0e-9, z_span=0.176376e-6,
-                               radius=self.hole_radius, index=1.4, material="etch")
+            fdtd.addcircle(name=f'circle_right_{i}', x=x * 1e-6, y=y * 1e-6, z=0.0e-9, z_span=0.176376e-6,
+                           radius=self.hole_radius, index=1.4, material="etch")
 
         # Adding circles for the left region
         for j, (x, y) in enumerate(zip(x_coords_left, y_coords_left)):
-            if (j + 1) % 11 == 0:
-                fdtd.addcircle(name=f'circle_left_{j}', x=x * 1e-6, y=y * 1e-6, z=0.0e-9, z_span=0.176376e-6,
-                               radius=self.hole_radius, index=1.4, material="etch")
-            else:
-                fdtd.addcircle(name=f'circle_left_{j}', x=x * 1e-6, y=y * 1e-6, z=0.0e-9, z_span=0.176376e-6,
-                               radius=self.hole_radius, index=1.4, material="etch")
+            fdtd.addcircle(name=f'circle_left_{j}', x=x * 1e-6, y=y * 1e-6, z=0.0e-9, z_span=0.176376e-6,
+                           radius=self.hole_radius, index=1.4, material="etch")
 
     def update_geometry(self, params: list, fdtd: FDTD):
 
-        (x_coords_right, y_coords_right), (x_coords_left, y_coords_left) = self._create_fast_regions_air()
+        (x_coords_right, y_coords_right), (x_coords_left, y_coords_left) = self._create_fast_regions_air(params)
         (x_min_coords, y_min_coords, x_max_coords, y_max_coords) = self._create_wg(params)
 
         for i, (x, y) in enumerate(zip(x_coords_right, y_coords_right)):
-            if (i + 1) % 11 == 0:
-                coordinates = {"x": x * 1e-6,
-                               "y": y * 1e-6,
-                               "z": 0,
-                               "z span": 0.176376e-6,
-                               "radius": self.hole_radius}
-                fdtd.setnamed(f'circle_right_{i}', coordinates)
-            else:
-                coordinates = {"x": x * 1e-6,
-                               "y": y * 1e-6,
-                               "z": 0,
-                               "z span": 0.176376e-6,
-                               }
-                fdtd.setnamed(f'circle_right_{i}', coordinates)
+            coordinates = {"x": x * 1e-6,
+                           "y": y * 1e-6,
+                           "z": 0,
+                           "z span": 0.176376e-6,
+                           }
+            fdtd.setnamed(f'circle_right_{i}', coordinates)
 
         for i, (x, y) in enumerate(zip(x_coords_left, y_coords_left)):
-            if (i + 1) % 11 == 0:
-                coordinates = {"x": x * 1e-6,
-                               "y": y * 1e-6,
-                               "z": 0,
-                               "z span": 0.176376e-6,
-                               "radius": self.hole_radius
-                               }
-                fdtd.setnamed(f'circle_left_{i}', coordinates)
-            else:
-                coordinates = {"x": x * 1e-6,
-                               "y": y * 1e-6,
-                               "z": 0,
-                               "z span": 0.176376e-6,
-                               }
-                fdtd.setnamed(f'circle_left_{i}', coordinates)
+            coordinates = {"x": x * 1e-6,
+                           "y": y * 1e-6,
+                           "z": 0,
+                           "z span": 0.176376e-6,
+                           "radius": self.hole_radius
+                           }
+            fdtd.setnamed(f'circle_left_{i}', coordinates)
 
         for i, (x_min, y_min, x_max, y_max) in enumerate(zip(x_min_coords, y_min_coords, x_max_coords, y_max_coords)):
             coordinatesr = {"x min": x_min * 1e-6,
@@ -215,40 +210,37 @@ class Phc(GeomBase):
                             }
             fdtd.setnamed(f'rect{i}', coordinatesr)
 
-    def _create_fast_regions_air(self):
+    def _create_fast_regions_air(self, params):
         ny_fr = 10
-        n_col = 15
+        n_col = len(params)
         sf1 = 1.01383
         sf2 = 1.09038
         a_poly = 7.79169e-05
         n_poly = 2 * n_col
         b_poly = (sf1 - sf2) / (1 - n_poly) - a_poly * (1 + n_poly)
-        stop_air = 6
-        shift = 5
         c_poly = sf1 - a_poly * sf1 ** 2 - b_poly * sf1
         sf_vals = [a_poly * i ** 2 + b_poly * i + c_poly for i in range(1, n_poly + 1)]
         x_coords_right = []
         y_coords_right = []
         x_coords_left = []
         y_coords_left = []
-        tab_space = np.array(sf_vals)
-        cumul = np.cumsum(tab_space)
+        tab_space1 = np.array(params)
+        tab_space2 = np.array([sf1])
+        for i in range(1, len(params)):
+            tab_space2 = np.append(tab_space2, (params[i - 1] + params[i]) / 2)
+
+        combined_array = np.concatenate((tab_space1, tab_space2))
+        sorted_array = np.sort(combined_array)
+        cumul = np.cumsum(sorted_array)
         for i in range(-self.ny_fr, self.ny_fr + 1):
             if i == 0:
                 continue
-            elif abs(i) < stop_air and i % 2 == 0:
-                n_cols = n_col - shift + abs(i) // 2
-            elif abs(i) < stop_air and i % 2 == 1:
-                n_cols = n_col - shift + abs(i) // 2
-            else:
-                n_cols = n_col
-            for j in range(1, n_cols + 1):
+            for j in range(1, n_col + 1):
                 if i % 2 == 1:
                     n = j * 2
                     x_right = self.d_fregion + self.a * cumul[n - 1] / 2
                     x_left = -self.d_fregion - self.a * cumul[n - 1] / 2
                 else:
-
                     n = j * 2 - 1
                     x_right = self.d_fregion + self.a * cumul[n - 1] / 2
                     x_left = -self.d_fregion - self.a * cumul[n - 1] / 2
@@ -262,20 +254,21 @@ class Phc(GeomBase):
 
         return (np.array(x_coords_right), np.array(y_coords_right)), (np.array(x_coords_left), np.array(y_coords_left))
 
-
-    def _create_wg(self, params):
-        ncol = 11
-        sf1 = 1.01383
-        sf2 = 1.09038
+    def _create_wg(self, params: list):
+        n_cols_start = len(params)
         a_poly = 7.79169e-05
-        n_poly = 2 * ncol
-        b_poly = (sf1 - sf2) / (1 - n_poly) - a_poly * (1 + n_poly)
-
-        c_poly = sf1 - a_poly * sf1 ** 2 - b_poly * sf1
+        n_poly = 2 * n_cols_start
+        sf1_s = 1.01386
+        sf2_s = 1.09038
+        b_poly = (sf1_s - sf2_s) / (1 - n_poly) - a_poly * (1 + n_poly)
+        c_poly = sf1_s - a_poly * sf1_s ** 2 - b_poly * sf1_s
         sf_vals = [a_poly * i ** 2 + b_poly * i + c_poly for i in range(1, n_poly + 1)]
-        tab_space = np.array(sf_vals)
-        cumul = np.cumsum(tab_space)
-        x0 = self.d_fregion + cumul[-2] * self.a * 0.5
+
+        tab_space = np.array(params)
+        cumul = np.cumsum(params)
+        wg_conn_add_period = 0.411679
+        wg_conn_add = self.a * sf1_s * wg_conn_add_period
+        x0 = np.round(self.d_fregion + self.a * cumul[-1] - wg_conn_add, 6)
         wg_length = self.membrane_length / 2 - x0
         x_min_coords = [x0, x0, -self.membrane_length / 2, -self.membrane_length / 2]
         y_min_coords = [self.wg1_width / 2, -(self.wg1_width / 2 + self.trench_width), self.wg1_width / 2,
@@ -285,6 +278,8 @@ class Phc(GeomBase):
                         self.wg1_width / 2 + self.trench_width, -self.wg1_width / 2]
 
         return np.array(x_min_coords), np.array(y_min_coords), np.array(x_max_coords), np.array(y_max_coords)
+
+
 
 class PhcForOptimization(GeomBase):
     def __init__(self):
@@ -348,7 +343,8 @@ class PhcForOptimization(GeomBase):
                       x_span=0,
                       y_span=self._mode_span_y,
                       z_span=self._mode_span_z,
-                      override_global_monitor_settings=True
+                      override_global_monitor_settings=True,
+                      frequency_points=100
                       )
 
         fdtd.addmesh(name="fom_mesh",
@@ -433,10 +429,10 @@ class PhcForOptimization(GeomBase):
                             }
             fdtd.setnamed(f'rect{i}', coordinatesr)
 
-    def _create_fast_regions(self):
+    def _create_fast_regions(self, params : list):
         n_cols_start = 11
-        sf1_s = 1.01386
-        sf2_s = 1.09038
+        sf1_s = params[0]
+        sf2_s = params[1]
         a_poly = 7.79169e-05
         n_poly = 2 * n_cols_start
         b_poly = (sf1_s - sf2_s) / (1 - n_poly) - a_poly * (1 + n_poly)
@@ -627,7 +623,7 @@ class Phc_Paper(GeomBase):
 
     def setup_geometry(self, params: list, fdtd: FDTD):
 
-        (x_coords_right, y_coords_right), (x_coords_left, y_coords_left) = self._create_fast_regions_()
+        (x_coords_right, y_coords_right), (x_coords_left, y_coords_left) = self._create_fast_regions_paper_geometry()
         # (x_min_coords, y_min_coords, x_max_coords, y_max_coords) = self._create_wg(params)
 
         # Adding rect for WG
@@ -647,7 +643,7 @@ class Phc_Paper(GeomBase):
 
     def update_geometry(self, params: list, fdtd: FDTD):
 
-        (x_coords_right, y_coords_right), (x_coords_left, y_coords_left) = self._create_fast_regions_()
+        (x_coords_right, y_coords_right), (x_coords_left, y_coords_left) = self._create_fast_regions_paper_geometry()
         # (x_min_coords, y_min_coords, x_max_coords, y_max_coords) = self._create_wg(params)
 
         for i, (x, y) in enumerate(zip(x_coords_right, y_coords_right)):
