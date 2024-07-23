@@ -337,10 +337,9 @@ class PhcForOptimization(GeomBase):
         fdtd.setglobalmonitor("frequency points", 100)
 
         fdtd.addpower(name="fom",
-                      monitor_type="3D",
+                      monitor_type="2D X-normal",
                       x=self._fom_pos_x,
                       y=0, z=0,
-                      x_span=0,
                       y_span=self._mode_span_y,
                       z_span=self._mode_span_z,
                       override_global_monitor_settings=True,
@@ -374,9 +373,11 @@ class PhcForOptimization(GeomBase):
                      x=0, y=0, z=0,
                      x_span=self.x_span,
                      y_span=self._mode_span_y,
-                     dx=self.dx, dy=self.dy)
+                     z_span=self._mode_span_z,
+                     dx=self.dx, dy=self.dy, dz=self.dz)
 
-        # fdtd.redrawon()
+        fdtd.redrawon()
+
 
     def setup_geometry(self, params: list, fdtd: FDTD):
 
@@ -532,7 +533,7 @@ class Phc_Paper(GeomBase):
 
     def setup_script(self, fdtd: FDTD):
 
-        filename = "C:\\Users\\SQ\\Documents\\Lumerical\\Photonic_crystals\\FSF_crystal\\04_optimization_python\\fsf_crystal_3d_sftaper_geo.fsp"
+        filename = "C:\\Users\\TimothéeMounier\\Documents\\Optimization\\optim FDTD\\Phc_slow_paper_wg.fsp"
 
         fdtd.load(filename)
 
@@ -566,20 +567,20 @@ class Phc_Paper(GeomBase):
         #              z_span=0.047e-6,
         #              index=self.n_wg)
 
-        # fdtd.addmode(name="source",
-        #              injection_axis="x-axis",
-        #              direction="forward",
-        #              x=self._source_pos_x,
-        #              y=0, z=0,
-        #              y_span=self._mode_span_y,
-        #              z_span=self._mode_span_z,
-        #              mode_selection="fundamental TE mode",
-        #              center_wavelength=self.lambda0,
-        #              wavelength_span=self.lambda_span)
-        #
-        # fdtd.setglobalsource("center wavelength", self.lambda0)
-        # fdtd.setglobalsource("wavelength span", self.lambda_span)
-        # fdtd.setglobalmonitor("frequency points", 25)
+        fdtd.addmode(name="source",
+                     injection_axis="x-axis",
+                     direction="forward",
+                     x=self._source_pos_x,
+                     y=0, z=0,
+                     y_span=self._mode_span_y,
+                     z_span=self._mode_span_z,
+                     mode_selection="fundamental TE mode",
+                     center_wavelength=self.lambda0,
+                     wavelength_span=self.lambda_span)
+
+        fdtd.setglobalsource("center wavelength", self.lambda0)
+        fdtd.setglobalsource("wavelength span", self.lambda_span)
+        fdtd.setglobalmonitor("frequency points", 100)
 
         fdtd.addpower(name="fom",
                       monitor_type="2D X-normal",
@@ -587,7 +588,8 @@ class Phc_Paper(GeomBase):
                       y=0, z=0,
                       y_span=self._mode_span_y,
                       z_span=self._mode_span_z,
-                      override_global_monitor_settings=True
+                      override_global_monitor_settings=True,
+                      frequency_points=100
                       )
 
         fdtd.addmesh(name="fom_mesh",
@@ -601,7 +603,7 @@ class Phc_Paper(GeomBase):
                      override_z_mesh=False,
                      dx=self.dx,
                      )
-        #
+
         fdtd.addpower(name="opt_fields",
                       monitor_type="2D Z-normal",
                       x=0, y=0, z=0,
@@ -617,9 +619,11 @@ class Phc_Paper(GeomBase):
                      x=0, y=0, z=0,
                      x_span=self.x_span,
                      y_span=self._mode_span_y,
-                     dx=self.dx, dy=self.dy)
-        #
-        # fdtd.redrawon()
+                     z_span=self._mode_span_z,
+                     dx=self.dx, dy=self.dy, dz=self.dz)
+
+        fdtd.redrawon()
+
 
     def setup_geometry(self, params: list, fdtd: FDTD):
 
